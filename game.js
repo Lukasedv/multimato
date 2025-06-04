@@ -21,6 +21,10 @@ class Game {
         this.aiScore = 0;
         this.difficulty = 3;
         
+        // AI position history to prevent circular movement
+        this.aiPositionHistory = [];
+        this.maxHistoryLength = 10;
+        
         this.initializeControls();
         this.generateFood();
         this.draw();
@@ -105,6 +109,9 @@ class Game {
         this.playerScore = 0;
         this.aiScore = 0;
         
+        // Reset AI position history
+        this.aiPositionHistory = [];
+        
         this.updateScore();
         this.generateFood();
         document.getElementById('gameStatus').textContent = 'Press Start to begin!';
@@ -145,6 +152,9 @@ class Game {
         // AI decision making
         this.updateAI();
         this.aiSnake.move();
+        
+        // Track AI position history after movement
+        this.trackAIPosition();
         
         // Check game over conditions first (before growing)
         this.checkGameOver();
@@ -194,6 +204,24 @@ class Game {
         this.aiSnake.changeDirection(bestDirection.x, bestDirection.y);
     }
     
+    trackAIPosition() {
+        const aiHead = this.aiSnake.body[0];
+        const position = {x: aiHead.x, y: aiHead.y};
+        
+        this.aiPositionHistory.push(position);
+        
+        // Keep history to a reasonable size
+        if (this.aiPositionHistory.length > this.maxHistoryLength) {
+            this.aiPositionHistory.shift();
+        }
+    }
+    
+    isRecentPosition(position) {
+        return this.aiPositionHistory.some(pos => 
+            pos.x === position.x && pos.y === position.y
+        );
+    }
+    
     findNearestFood(position) {
         let nearest = null;
         let minDistance = Infinity;
@@ -213,11 +241,31 @@ class Game {
         const dx = food.x - head.x;
         const dy = food.y - head.y;
         
+        // Try both horizontal and vertical directions
+        const directions = [];
+        
         if (Math.abs(dx) > Math.abs(dy)) {
-            return {x: dx > 0 ? 1 : -1, y: 0};
+            directions.push({x: dx > 0 ? 1 : -1, y: 0});
+            directions.push({x: 0, y: dy > 0 ? 1 : -1});
         } else {
-            return {x: 0, y: dy > 0 ? 1 : -1};
+            directions.push({x: 0, y: dy > 0 ? 1 : -1});
+            directions.push({x: dx > 0 ? 1 : -1, y: 0});
         }
+        
+        // Choose direction that doesn't lead to recent position if possible
+        for (let dir of directions) {
+            const nextPos = {
+                x: head.x + dir.x,
+                y: head.y + dir.y
+            };
+            
+            if (!this.wouldCauseDeath(nextPos) && !this.isRecentPosition(nextPos)) {
+                return dir;
+            }
+        }
+        
+        // If both directions lead to recent positions, use the primary one
+        return directions[0];
     }
     
     findPathToFood(start, goal) {
@@ -243,7 +291,11 @@ class Game {
             if (!this.wouldCauseDeath(nextPos)) {
                 const distance = Math.abs(nextPos.x - goal.x) + Math.abs(nextPos.y - goal.y);
                 const futureCollisionRisk = this.calculateCollisionRisk(nextPos, dir);
-                const score = distance + futureCollisionRisk;
+                
+                // Add penalty for recent positions to avoid loops
+                const historyPenalty = this.isRecentPosition(nextPos) ? 5 : 0;
+                
+                const score = distance + futureCollisionRisk + historyPenalty;
                 
                 if (score < bestScore) {
                     bestScore = score;
@@ -302,6 +354,15 @@ class Game {
             {x: -1, y: 0}, {x: 1, y: 0}
         ];
         
+        // Shuffle directions to avoid predictable patterns
+        for (let i = directions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [directions[i], directions[j]] = [directions[j], directions[i]];
+        }
+        
+        let safeDirections = [];
+        let fallbackDirections = [];
+        
         for (let dir of directions) {
             if (dir.x === -this.aiSnake.direction.x && dir.y === -this.aiSnake.direction.y) {
                 continue; // Don't reverse
@@ -313,8 +374,23 @@ class Game {
             };
             
             if (!this.wouldCauseDeath(nextPos)) {
-                return dir;
+                // Prefer directions that don't lead to recent positions
+                if (!this.isRecentPosition(nextPos)) {
+                    safeDirections.push(dir);
+                } else {
+                    fallbackDirections.push(dir);
+                }
             }
+        }
+        
+        // Use safe directions that avoid recent positions first
+        if (safeDirections.length > 0) {
+            return safeDirections[0];
+        }
+        
+        // If all safe directions are recent positions, use them anyway
+        if (fallbackDirections.length > 0) {
+            return fallbackDirections[0];
         }
         
         return this.aiSnake.direction; // Keep current direction if no safe option
