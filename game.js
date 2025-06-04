@@ -63,6 +63,7 @@ class Game {
                 
                 // Ensure snakes are within bounds after resize
                 this.validateSnakePositions();
+                this.validateFoodPositions();
                 this.draw();
             }
         };
@@ -99,6 +100,16 @@ class Game {
                 segment.y = Math.min(segment.y, this.tileCount.y - 1);
             });
         }
+    }
+
+    validateFoodPositions() {
+        // Remove food items that are now outside the canvas bounds
+        this.food = this.food.filter(food => 
+            food.x < this.tileCount.x && food.y < this.tileCount.y
+        );
+        
+        // Regenerate food if we lost some due to resizing
+        this.generateFood();
     }
     
     initializeControls() {
