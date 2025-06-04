@@ -26,9 +26,90 @@ class Game {
         this.maxHistoryLength = 20; // Increased to detect larger loops
         
         this.initializeControls();
+        this.setupResponsiveCanvas();
         this.generateFood();
         this.displayVersion();
         this.draw();
+    }
+
+    setupResponsiveCanvas() {
+        // Handle responsive canvas sizing for mobile
+        const resizeCanvas = () => {
+            const container = this.canvas.parentElement;
+            const containerWidth = container.clientWidth - 40; // Account for padding
+            const maxWidth = 600;
+            const maxHeight = 400;
+            
+            // Calculate appropriate size while maintaining aspect ratio
+            let canvasWidth = Math.min(maxWidth, containerWidth);
+            let canvasHeight = (canvasWidth / maxWidth) * maxHeight;
+            
+            // Ensure minimum playable size
+            if (canvasWidth < 300) {
+                canvasWidth = 300;
+                canvasHeight = 200;
+            }
+            
+            // Update canvas size if changed
+            if (this.canvas.width !== canvasWidth || this.canvas.height !== canvasHeight) {
+                this.canvas.width = canvasWidth;
+                this.canvas.height = canvasHeight;
+                
+                // Recalculate tile count
+                this.tileCount = {
+                    x: Math.floor(this.canvas.width / this.gridSize),
+                    y: Math.floor(this.canvas.height / this.gridSize)
+                };
+                
+                // Ensure snakes are within bounds after resize
+                this.validateSnakePositions();
+                this.validateFoodPositions();
+                this.draw();
+            }
+        };
+        
+        // Resize on load and window resize
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(resizeCanvas, 100); // Delay to allow orientation change to complete
+        });
+    }
+
+    validateSnakePositions() {
+        // Ensure player snake is within bounds
+        if (this.playerSnake.body[0].x >= this.tileCount.x) {
+            this.playerSnake.body.forEach(segment => {
+                segment.x = Math.min(segment.x, this.tileCount.x - 1);
+            });
+        }
+        if (this.playerSnake.body[0].y >= this.tileCount.y) {
+            this.playerSnake.body.forEach(segment => {
+                segment.y = Math.min(segment.y, this.tileCount.y - 1);
+            });
+        }
+        
+        // Ensure AI snake is within bounds
+        if (this.aiSnake.body[0].x >= this.tileCount.x) {
+            this.aiSnake.body.forEach(segment => {
+                segment.x = Math.min(segment.x, this.tileCount.x - 1);
+            });
+        }
+        if (this.aiSnake.body[0].y >= this.tileCount.y) {
+            this.aiSnake.body.forEach(segment => {
+                segment.y = Math.min(segment.y, this.tileCount.y - 1);
+            });
+        }
+    }
+
+    validateFoodPositions() {
+        // Remove food items that are now outside the canvas bounds
+        this.food = this.food.filter(food => 
+            food.x < this.tileCount.x && food.y < this.tileCount.y
+        );
+        
+        // Regenerate food if we lost some due to resizing
+        this.generateFood();
     }
     
     initializeControls() {
@@ -61,6 +142,59 @@ class Game {
         document.getElementById('pauseBtn').addEventListener('click', () => this.togglePause());
         document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
         
+        // Touch Controls for mobile
+        const upBtn = document.getElementById('upBtn');
+        const downBtn = document.getElementById('downBtn');
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        
+        if (upBtn) {
+            upBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (this.gameRunning) this.playerSnake.changeDirection(0, -1);
+            });
+            upBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.gameRunning) this.playerSnake.changeDirection(0, -1);
+            });
+        }
+        
+        if (downBtn) {
+            downBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (this.gameRunning) this.playerSnake.changeDirection(0, 1);
+            });
+            downBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.gameRunning) this.playerSnake.changeDirection(0, 1);
+            });
+        }
+        
+        if (leftBtn) {
+            leftBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (this.gameRunning) this.playerSnake.changeDirection(-1, 0);
+            });
+            leftBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.gameRunning) this.playerSnake.changeDirection(-1, 0);
+            });
+        }
+        
+        if (rightBtn) {
+            rightBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (this.gameRunning) this.playerSnake.changeDirection(1, 0);
+            });
+            rightBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.gameRunning) this.playerSnake.changeDirection(1, 0);
+            });
+        }
+
+        // Add swipe gesture support for mobile
+        this.setupSwipeControls();
+        
         const difficultySlider = document.getElementById('difficulty');
         difficultySlider.addEventListener('input', (e) => {
             this.difficulty = parseInt(e.target.value);
@@ -68,6 +202,61 @@ class Game {
         });
         
         this.updateDifficultyLabel();
+    }
+
+    setupSwipeControls() {
+        let touchStartX = null;
+        let touchStartY = null;
+        const minSwipeDistance = 30;
+
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (!this.gameRunning || touchStartX === null || touchStartY === null) return;
+
+            const touch = e.changedTouches[0];
+            const touchEndX = touch.clientX;
+            const touchEndY = touch.clientY;
+
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            // Only register swipe if minimum distance is met
+            if (Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) {
+                return;
+            }
+
+            // Determine swipe direction
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Horizontal swipe
+                if (deltaX > 0) {
+                    this.playerSnake.changeDirection(1, 0); // Right
+                } else {
+                    this.playerSnake.changeDirection(-1, 0); // Left
+                }
+            } else {
+                // Vertical swipe
+                if (deltaY > 0) {
+                    this.playerSnake.changeDirection(0, 1); // Down
+                } else {
+                    this.playerSnake.changeDirection(0, -1); // Up
+                }
+            }
+
+            touchStartX = null;
+            touchStartY = null;
+        }, { passive: false });
+
+        // Prevent default touch behaviors on canvas
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
     }
     
     updateDifficultyLabel() {

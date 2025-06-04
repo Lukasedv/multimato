@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
     <title>Snake Battle - Human vs AI</title>
     <style>
         body {
@@ -109,6 +109,8 @@
             background: rgba(0, 0, 0, 0.3);
             display: block;
             margin: 0 auto;
+            max-width: 100%;
+            height: auto;
         }
 
         .game-info {
@@ -183,6 +185,181 @@
         .winner-tie {
             color: #FFD700;
         }
+
+        /* Touch controls for mobile */
+        .touch-controls {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .touch-controls-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .touch-btn {
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .touch-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .touch-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0.95);
+        }
+
+        /* Prevent text selection and improve touch experience */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        input[type="range"] {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+        }
+
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .game-container {
+                padding: 15px;
+                margin-bottom: 10px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 15px;
+            }
+
+            .controls {
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .difficulty-control {
+                flex-direction: column;
+                gap: 5px;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            .difficulty-slider {
+                width: 120px;
+            }
+
+            button {
+                padding: 10px 18px;
+                font-size: 14px;
+            }
+
+            .game-info {
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px;
+                text-align: center;
+            }
+
+            .score {
+                font-size: 1.1em;
+            }
+
+            .instructions {
+                font-size: 12px;
+                padding: 12px;
+                line-height: 1.5;
+            }
+
+            .game-over {
+                padding: 20px;
+                margin: 10px;
+                max-width: calc(100vw - 40px);
+                box-sizing: border-box;
+            }
+
+            .winner-text {
+                font-size: 1.5em;
+            }
+
+            /* Show touch controls on mobile */
+            .touch-controls {
+                display: flex;
+            }
+
+            /* Update instructions for mobile */
+            .instructions {
+                font-size: 12px;
+                padding: 12px;
+                line-height: 1.5;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .difficulty-control {
+                width: 100%;
+                justify-content: center;
+            }
+
+            button {
+                width: 100%;
+                max-width: 200px;
+            }
+
+            /* Larger touch buttons for small screens */
+            .touch-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 28px;
+            }
+
+            .touch-controls {
+                margin-top: 15px;
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -208,8 +385,20 @@
 
         <canvas id="gameCanvas" width="600" height="400"></canvas>
 
+        <!-- Mobile touch controls -->
+        <div id="touchControls" class="touch-controls">
+            <div class="touch-controls-row">
+                <button class="touch-btn" id="upBtn">↑</button>
+            </div>
+            <div class="touch-controls-row">
+                <button class="touch-btn" id="leftBtn">←</button>
+                <button class="touch-btn" id="downBtn">↓</button>
+                <button class="touch-btn" id="rightBtn">→</button>
+            </div>
+        </div>
+
         <div class="instructions">
-            <strong>Controls:</strong> Use WASD or Arrow Keys to move your snake (Green)<br>
+            <strong>Controls:</strong> Use WASD or Arrow Keys to move your snake (Green). On mobile, use the touch buttons below or swipe on the game area.<br>
             <strong>Goal:</strong> Survive longer than the AI! Eat food to grow but avoid all collisions.<br>
             <strong>Victory:</strong> Last snake standing wins - score doesn't matter!<br>
             <strong>AI Difficulty:</strong> Easy (slow, basic) → Hard (fast, smart pathfinding)
