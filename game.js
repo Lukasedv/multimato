@@ -310,6 +310,8 @@ class Game {
                         y: nextStep.y - start.y
                     };
                 }
+                // If path length is 1, we're already at the goal
+                return this.aiSnake.direction;
             }
             
             // Move current from open to closed set
@@ -596,10 +598,17 @@ class Game {
         // Display version info based on git commit
         const versionElement = document.getElementById('version');
         if (versionElement) {
-            // Use a placeholder version that would be replaced in deployment
-            const version = 'v1.1.0-dev';
+            // Try to get git info from the URL or use build-time version
+            const version = this.getVersionString();
             versionElement.textContent = version;
         }
+    }
+    
+    getVersionString() {
+        // In a real deployment, this would be replaced with actual git info
+        // For now, use a development version with timestamp
+        const buildDate = new Date().toISOString().split('T')[0];
+        return `v1.1.0-dev-${buildDate}`;
     }
     
     draw() {
