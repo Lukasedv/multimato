@@ -23,10 +23,11 @@ class Game {
         
         // AI position history to prevent circular movement
         this.aiPositionHistory = [];
-        this.maxHistoryLength = 10;
+        this.maxHistoryLength = 20; // Increased to detect larger loops
         
         this.initializeControls();
         this.generateFood();
+        this.displayVersion();
         this.draw();
     }
     
@@ -269,42 +270,111 @@ class Game {
     }
     
     findPathToFood(start, goal) {
-        // Simplified A* pathfinding
+        // Proper A* pathfinding implementation
+        const openSet = [];
+        const closedSet = new Set();
+        const cameFrom = new Map();
+        const gScore = new Map();
+        const fScore = new Map();
+        
+        const startKey = `${start.x},${start.y}`;
+        const goalKey = `${goal.x},${goal.y}`;
+        
+        // Initialize start node
+        openSet.push({x: start.x, y: start.y});
+        gScore.set(startKey, 0);
+        fScore.set(startKey, this.heuristic(start, goal));
+        
         const directions = [
             {x: 0, y: -1}, {x: 0, y: 1}, 
             {x: -1, y: 0}, {x: 1, y: 0}
         ];
         
-        let bestDirection = this.aiSnake.direction;
-        let bestScore = Infinity;
-        
-        directions.forEach(dir => {
-            if (dir.x === -this.aiSnake.direction.x && dir.y === -this.aiSnake.direction.y) {
-                return; // Don't reverse
-            }
+        while (openSet.length > 0) {
+            // Find node with lowest fScore
+            let current = openSet.reduce((min, node) => {
+                const currentKey = `${node.x},${node.y}`;
+                const minKey = `${min.x},${min.y}`;
+                return fScore.get(currentKey) < fScore.get(minKey) ? node : min;
+            });
             
-            const nextPos = {
-                x: start.x + dir.x,
-                y: start.y + dir.y
-            };
+            const currentKey = `${current.x},${current.y}`;
             
-            if (!this.wouldCauseDeath(nextPos)) {
-                const distance = Math.abs(nextPos.x - goal.x) + Math.abs(nextPos.y - goal.y);
-                const futureCollisionRisk = this.calculateCollisionRisk(nextPos, dir);
-                
-                // Add penalty for recent positions to avoid loops
-                const historyPenalty = this.isRecentPosition(nextPos) ? 5 : 0;
-                
-                const score = distance + futureCollisionRisk + historyPenalty;
-                
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestDirection = dir;
+            // If we reached the goal, reconstruct path
+            if (current.x === goal.x && current.y === goal.y) {
+                const path = this.reconstructPath(cameFrom, current);
+                if (path.length > 1) {
+                    const nextStep = path[1];
+                    return {
+                        x: nextStep.x - start.x,
+                        y: nextStep.y - start.y
+                    };
                 }
             }
-        });
+            
+            // Move current from open to closed set
+            openSet.splice(openSet.findIndex(n => n.x === current.x && n.y === current.y), 1);
+            closedSet.add(currentKey);
+            
+            // Explore neighbors
+            for (let dir of directions) {
+                const neighbor = {
+                    x: current.x + dir.x,
+                    y: current.y + dir.y
+                };
+                const neighborKey = `${neighbor.x},${neighbor.y}`;
+                
+                // Skip if out of bounds or would cause death
+                if (this.wouldCauseDeath(neighbor) || closedSet.has(neighborKey)) {
+                    continue;
+                }
+                
+                // Calculate tentative gScore
+                const tentativeGScore = gScore.get(currentKey) + 1;
+                
+                // Add penalty for recent positions to discourage loops
+                const historyPenalty = this.isRecentPosition(neighbor) ? 3 : 0;
+                const adjustedGScore = tentativeGScore + historyPenalty;
+                
+                if (!openSet.some(n => n.x === neighbor.x && n.y === neighbor.y)) {
+                    openSet.push(neighbor);
+                } else if (adjustedGScore >= gScore.get(neighborKey)) {
+                    continue; // Not a better path
+                }
+                
+                // This path is the best so far
+                cameFrom.set(neighborKey, current);
+                gScore.set(neighborKey, adjustedGScore);
+                fScore.set(neighborKey, adjustedGScore + this.heuristic(neighbor, goal));
+            }
+        }
         
-        return bestDirection;
+        // No path found, fall back to safe direction or continue current direction
+        const safeDir = this.findSafeDirection(start);
+        if (safeDir) {
+            return safeDir;
+        }
+        
+        // If no safe direction, keep current direction to avoid reversing
+        return this.aiSnake.direction;
+    }
+    
+    heuristic(a, b) {
+        // Manhattan distance
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+    
+    reconstructPath(cameFrom, current) {
+        const path = [current];
+        let currentKey = `${current.x},${current.y}`;
+        
+        while (cameFrom.has(currentKey)) {
+            current = cameFrom.get(currentKey);
+            path.unshift(current);
+            currentKey = `${current.x},${current.y}`;
+        }
+        
+        return path;
     }
     
     calculateCollisionRisk(position, direction) {
@@ -520,6 +590,16 @@ class Game {
     updateScore() {
         document.getElementById('playerScore').textContent = this.playerScore;
         document.getElementById('aiScore').textContent = this.aiScore;
+    }
+    
+    displayVersion() {
+        // Display version info based on git commit
+        const versionElement = document.getElementById('version');
+        if (versionElement) {
+            // Use a placeholder version that would be replaced in deployment
+            const version = 'v1.1.0-dev';
+            versionElement.textContent = version;
+        }
     }
     
     draw() {
