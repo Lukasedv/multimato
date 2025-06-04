@@ -414,12 +414,15 @@ class Game {
         if (playerDead && aiDead) {
             winnerText.textContent = "It's a Tie!";
             winnerText.className = 'winner-text winner-tie';
+            document.getElementById('gameStatus').textContent = 'Both snakes crashed!';
         } else if (playerDead) {
             winnerText.textContent = "AI Wins!";
             winnerText.className = 'winner-text winner-ai';
+            document.getElementById('gameStatus').textContent = 'Player snake crashed!';
         } else {
             winnerText.textContent = "Player Wins!";
             winnerText.className = 'winner-text winner-player';
+            document.getElementById('gameStatus').textContent = 'AI snake crashed!';
         }
         
         finalScore.innerHTML = `Final Score:<br>Player: ${this.playerScore} | AI: ${this.aiScore}`;

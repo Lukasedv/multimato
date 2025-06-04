@@ -59,8 +59,9 @@ A modern web-based Snake game where you play against an intelligent AI opponent 
 - Both snakes start at different positions
 - 3 food items are always available on the field
 - Eating food increases your score and snake length
-- Game ends when any snake hits a wall, itself, or the other snake
+- **Game continues until a snake crashes** (hits a wall, itself, or the other snake)
 - Head-to-head collisions result in a tie
-- Winner is determined by survival, not just score
+- **Winner is determined by survival only** - the last snake standing wins!
+- Score is tracked for fun, but doesn't end the game
 
 Enjoy the challenge of competing against an intelligent AI opponent!
