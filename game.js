@@ -12,8 +12,8 @@ class Game {
         this.gamePaused = false;
         this.gameLoop = null;
         
-        this.playerSnake = new Snake(5, 5, '#4CAF50', 'player');
-        this.aiSnake = new Snake(25, 15, '#FF6B6B', 'ai');
+        this.playerSnake = new Snake(3, 10, '#4CAF50', 'player');
+        this.aiSnake = new Snake(26, 10, '#FF6B6B', 'ai');
         this.food = [];
         this.foodCount = 3;
         
@@ -99,8 +99,9 @@ class Game {
         this.gamePaused = false;
         clearInterval(this.gameLoop);
         
-        this.playerSnake = new Snake(5, 5, '#4CAF50', 'player');
-        this.aiSnake = new Snake(25, 15, '#FF6B6B', 'ai');
+        // Reset snakes with safer starting positions
+        this.playerSnake = new Snake(3, 10, '#4CAF50', 'player');
+        this.aiSnake = new Snake(26, 10, '#FF6B6B', 'ai');
         this.playerScore = 0;
         this.aiScore = 0;
         
@@ -145,11 +146,13 @@ class Game {
         this.updateAI();
         this.aiSnake.move();
         
-        // Check food collisions
-        this.checkFoodCollisions();
-        
-        // Check game over conditions
+        // Check game over conditions first (before growing)
         this.checkGameOver();
+        
+        // Only check food collisions if game is still running
+        if (this.gameRunning) {
+            this.checkFoodCollisions();
+        }
     }
     
     updateAI() {
@@ -343,14 +346,21 @@ class Game {
         // Generate new food if needed
         while (this.food.length < this.foodCount) {
             let newFood;
+            let attempts = 0;
             do {
                 newFood = {
                     x: Math.floor(Math.random() * this.tileCount.x),
                     y: Math.floor(Math.random() * this.tileCount.y)
                 };
+                attempts++;
+                if (attempts > 100) {
+                    break;
+                }
             } while (this.isPositionOccupied(newFood.x, newFood.y));
             
-            this.food.push(newFood);
+            if (attempts <= 100) {
+                this.food.push(newFood);
+            }
         }
         
         this.updateScore();
@@ -383,11 +393,13 @@ class Game {
             aiDead = true;
         }
         
-        // Check mutual collision
+        // Check mutual collision - exclude heads to avoid false positives
+        // AI head hitting player body (excluding player head)
         if (this.playerSnake.isPositionInSnake(aiHead.x, aiHead.y, 1)) {
             aiDead = true;
         }
         
+        // Player head hitting AI body (excluding AI head)  
         if (this.aiSnake.isPositionInSnake(playerHead.x, playerHead.y, 1)) {
             playerDead = true;
         }
